@@ -11,6 +11,10 @@ public class TrainingTypeService implements TrainingTypeManagementPort {
 
     private TrainingTypeRepositoryPort trainingTypeRepositoryPort;
 
+    public TrainingTypeService(TrainingTypeRepositoryPort trainingTypeRepositoryPort) {
+        this.trainingTypeRepositoryPort = trainingTypeRepositoryPort;
+    }
+
     @Autowired
     public void setRepo(TrainingTypeRepositoryPort trainingTypeRepositoryPort) {
         this.trainingTypeRepositoryPort = trainingTypeRepositoryPort;

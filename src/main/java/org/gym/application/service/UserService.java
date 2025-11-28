@@ -13,6 +13,10 @@ public class UserService implements UserManagementPort {
     private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
 
+    public UserService(UserRepositoryPort userRepositoryPort) {
+        this.userRepositoryPort = userRepositoryPort;
+    }
+
     @Autowired
     public void setRepo(UserRepositoryPort userRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
