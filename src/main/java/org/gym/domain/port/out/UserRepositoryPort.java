@@ -7,6 +7,7 @@ import java.util.List;
 public interface UserRepositoryPort {
     User save(User user);
     User findById(Long id);
+    User findByUsername(String username);
     List<User> findAll();
 
 }

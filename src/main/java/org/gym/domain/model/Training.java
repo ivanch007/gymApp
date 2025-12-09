@@ -7,7 +7,7 @@ public class Training {
     private Long traineeUserId;
     private Long trainerUserId;
     private String trainingName;
-    private String trainingType;
+    private Long trainingTypeId;
     private LocalDate date;
     private Integer duration;
 
@@ -39,20 +39,20 @@ public class Training {
         this.trainerUserId = trainerUserId;
     }
 
-    public String getTraingName() {
+    public String getTrainingName() {
         return trainingName;
     }
 
-    public void setTraingName(String traingName) {
-        this.trainingName = traingName;
+    public void setTrainingName(String trainingName) {
+        this.trainingName = trainingName;
     }
 
-    public String getTrainingType() {
-        return trainingType;
+    public Long getTrainingTypeId() {
+        return trainingTypeId;
     }
 
-    public void setTrainingType(String trainingType) {
-        this.trainingType = trainingType;
+    public void setTrainingTypeId(Long trainingType) {
+        this.trainingTypeId = trainingType;
     }
 
     public LocalDate getDate() {

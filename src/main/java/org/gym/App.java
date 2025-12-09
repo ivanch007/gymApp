@@ -2,11 +2,17 @@ package org.gym;
 
 import org.gym.domain.model.*;
 import org.gym.facade.GymFacade;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+import java.time.LocalDate;
 
 
 public class App 
 {
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
+
     public static void main( String[] args )
     {
 
@@ -17,40 +23,43 @@ public class App
 
         TrainingType biceps = new TrainingType();
         biceps.setTrainingTypeName("Biceps Workout");
+
         TrainingType savedBiceps = gymFacade.createTrainingType(biceps);
-        System.out.println("Training Type created with ID: " + savedBiceps.getId() + " and Name: "
-                + savedBiceps.getTrainingTypeName());
+        logger.info("TrainingType created id={} name={}",
+                savedBiceps.getId(), savedBiceps.getTrainingTypeName());
 
         User user = new User();
-        user.setFirstName("Ivan");
-        user.setLastName("Ocampo");
+        user.setFirstName("john");
+        user.setLastName("doe");
         User savedUser = gymFacade.createUser(user);
-        System.out.println("User created with ID: " + savedUser.getId() + " Name: " + savedUser.getFirstName()
-                + " Lastname: " +savedUser.getLastName() + " and Username: " + savedUser.getUsername() + " password: "
-                +  savedUser.getPassword());
+        logger.info("User created id={} username={} password={}",
+                savedUser.getId(), savedUser.getUsername(), savedUser.getPassword());
 
         Trainer trainer = new Trainer();
         trainer.setUserId(savedUser.getId());
         trainer.setSpecialization("Strength Training");
         Trainer savedTrainer = gymFacade.createTrainer(trainer);
-        System.out.println("Trainer creado id=" + savedTrainer.getId() + " userId=" + savedTrainer.getUserId());
+        logger.info("Trainer created id={} userId={}",
+                savedTrainer.getId(), savedTrainer.getUserId());
 
         Trainee trainee = new Trainee();
         trainee.setUserId(savedUser.getId());
-        trainee.setAddress("Calle 123");
+        trainee.setAddress("street 123");
         trainee.setDateOfBirth(java.time.LocalDate.of(1995, 5, 20));
         Trainee savedTrainee = gymFacade.createTrainee(trainee);
-        System.out.println("Trainee creado id=" + savedTrainee.getId() + " userId=" + savedTrainee.getUserId());
+        logger.info("Trainee created id={} userId={}",
+                savedTrainee.getId(), savedTrainee.getUserId());
 
         Training training = new Training();
-        training.setTrainerUserId(savedTrainer.getUserId());
-        training.setTraineeUserId(savedTrainee.getUserId());
-        training.setTrainingType(savedBiceps.getTrainingTypeName());
-        training.setTraingName("Morning Session");
-        training.setDate(java.time.LocalDate.now());
+        training.setTrainerUserId(savedTrainer.getId());
+        training.setTraineeUserId(savedTrainee.getId());
+        training.setTrainingTypeId(savedBiceps.getId());
+        training.setTrainingName("Morning Session");
+        training.setDate(LocalDate.now());
         training.setDuration(60);
         Training savedTraining = gymFacade.createTraining(training);
-        System.out.println("Training creado id: " + savedTraining.getId() + " name: " + savedTraining.getTraingName());
+        logger.info("Training created id={} name={}",
+                savedTraining.getId(), savedTraining.getTrainingName());
 
         context.close();
     }

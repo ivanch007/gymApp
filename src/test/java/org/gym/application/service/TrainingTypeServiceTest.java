@@ -2,69 +2,113 @@ package org.gym.application.service;
 
 import org.gym.domain.model.TrainingType;
 import org.gym.domain.port.out.TrainingTypeRepositoryPort;
+import org.gym.util.generator.IdGenerator;
+import org.gym.util.validator.TrainingTypeValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class TrainingTypeServiceTest {
+class TrainingTypeServiceTest {
 
-    private TrainingTypeRepositoryPort trainingTypeRepositoryPort;
+    private TrainingTypeRepositoryPort trainingTypeRepo;
     private TrainingTypeService trainingTypeService;
 
     @BeforeEach
     void setUp() {
-        trainingTypeRepositoryPort = mock(TrainingTypeRepositoryPort.class);
-        trainingTypeService = new TrainingTypeService(trainingTypeRepositoryPort);
+        trainingTypeRepo = mock(TrainingTypeRepositoryPort.class);
+        trainingTypeService = new TrainingTypeService(trainingTypeRepo);
     }
 
     @Test
     void create_ShouldGenerateId_WhenIdIsNull() {
-        TrainingType trainingType = new TrainingType();
-        trainingType.setTrainingTypeName("Cardio");
+        TrainingType type = new TrainingType();
+        type.setTrainingTypeName("Cardio");
+        when(trainingTypeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ArgumentCaptor<TrainingType> captor = ArgumentCaptor.forClass(TrainingType.class);
+        try (MockedStatic<TrainingTypeValidator> validator = mockStatic(TrainingTypeValidator.class);
+             MockedStatic<IdGenerator> idGen = mockStatic(IdGenerator.class)) {
 
-        when(trainingTypeRepositoryPort.save(any(TrainingType.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        TrainingType result = trainingTypeService.create(trainingType);
+            validator.when(() -> TrainingTypeValidator.validateForCreate(type)).thenAnswer(inv -> null);
+            idGen.when(IdGenerator::generateId).thenReturn(111L);
 
-        verify(trainingTypeRepositoryPort).save(captor.capture());
-        TrainingType saved = captor.getValue();
+            TrainingType result = trainingTypeService.create(type);
 
-        assertNotNull(saved.getId(), "El ID debe ser generado automáticamente");
-        assertEquals("Cardio", saved.getTrainingTypeName());
-        assertEquals(result.getId(), saved.getId(), "El ID retornado debe ser el mismo");
+            assertNotNull(result.getId(), "ID must be generated if null");
+            assertEquals(111L, result.getId(), "Generated ID must match mocked value");
+
+            ArgumentCaptor<TrainingType> captor = ArgumentCaptor.forClass(TrainingType.class);
+            verify(trainingTypeRepo).save(captor.capture());
+            assertEquals(111L, captor.getValue().getId(), "Saved entity must have generated id");
+        }
     }
 
     @Test
-    void get_ShouldDelegateToRepository() {
+    void create_ShouldNotOverwriteId_WhenIdExists() {
+        TrainingType type = new TrainingType();
+        type.setId(777L);
+        type.setTrainingTypeName("Strength");
+        when(trainingTypeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        try (MockedStatic<TrainingTypeValidator> validator = mockStatic(TrainingTypeValidator.class)) {
+            validator.when(() -> TrainingTypeValidator.validateForCreate(type)).thenAnswer(inv -> null);
+
+            TrainingType result = trainingTypeService.create(type);
+
+            assertEquals(777L, result.getId());
+            verify(trainingTypeRepo).save(same(type));
+        }
+    }
+
+    @Test
+    void create_ShouldThrow_WhenNameIsNull() {
+
+        TrainingType type = new TrainingType();
+        type.setTrainingTypeName(null);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> trainingTypeService.create(type),
+                "Missing name must cause validation error");
+    }
+
+    @Test
+    void get_ShouldReturnEntity_WhenExists() {
         TrainingType expected = new TrainingType();
-        expected.setId(123L);
+        expected.setId(10L);
 
-        when(trainingTypeRepositoryPort.findById(123L)).thenReturn(expected);
+        when(trainingTypeRepo.findById(10L)).thenReturn(expected);
 
-        TrainingType actual = trainingTypeService.get(123L);
+        TrainingType result = trainingTypeService.get(10L);
 
-        assertSame(expected, actual);
-        verify(trainingTypeRepositoryPort).findById(123L);
+        assertSame(expected, result);
+        verify(trainingTypeRepo).findById(10L);
     }
 
     @Test
-    void update_ShouldCallSaveAndReturnUpdated() {
-        TrainingType existing = new TrainingType();
-        existing.setId(1L);
-        existing.setTrainingTypeName("Old");
+    void get_ShouldReturnNull_WhenIdIsNull() {
+        TrainingType result = trainingTypeService.get(null);
+        assertNull(result);
+    }
 
-        when(trainingTypeRepositoryPort.save(any(TrainingType.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+    @Test
+    void update_ShouldValidateAndSave() {
+        TrainingType type = new TrainingType();
+        type.setId(22L);
+        type.setTrainingTypeName("Boxing");
+        when(trainingTypeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        TrainingType updated = trainingTypeService.update(existing);
+        try (MockedStatic<TrainingTypeValidator> validator = mockStatic(TrainingTypeValidator.class)) {
+            validator.when(() -> TrainingTypeValidator.validateForUpdate(type)).thenAnswer(inv -> null);
 
-        verify(trainingTypeRepositoryPort).save(existing);
-        assertEquals("Old", updated.getTrainingTypeName());
+            TrainingType result = trainingTypeService.update(type);
+
+            assertEquals(22L, result.getId());
+            verify(trainingTypeRepo).save(same(type));
+        }
     }
 }

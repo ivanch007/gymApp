@@ -1,73 +1,96 @@
 package org.gym.application.service;
 
 import org.gym.domain.model.Trainee;
+import org.gym.domain.model.User;
 import org.gym.domain.port.out.TraineeRepositoryPort;
+import org.gym.domain.port.out.UserRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.any;
 
-public class TraineeServiceTest {
+class TraineeServiceTest {
 
-    private TraineeRepositoryPort traineeRepositoryPort;
+    private TraineeRepositoryPort traineeRepo;
+    private UserRepositoryPort userRepo;
     private TraineeService traineeService;
 
     @BeforeEach
     void setUp() {
-        traineeRepositoryPort = mock(TraineeRepositoryPort.class);
-        traineeService = new TraineeService();
-        traineeService.setRepo(traineeRepositoryPort);
+        traineeRepo = mock(TraineeRepositoryPort.class);
+        userRepo = mock(UserRepositoryPort.class);
+
+        traineeService = new TraineeService(traineeRepo, userRepo);
     }
 
     @Test
     void createTrainee_ShouldGenerateId_WhenIdIsNull() {
-        Trainee trainee = new Trainee(); // id null inicialmente
+        Trainee trainee = new Trainee();
+        trainee.setUserId(1L);
+        trainee.setAddress("Some Street");
+        trainee.setDateOfBirth(LocalDate.of(1990, 1, 1));
 
-        when(traineeRepositoryPort.save(any(Trainee.class)))
+        when(userRepo.findById(1L)).thenReturn(new User());
+        when(traineeRepo.save(any(Trainee.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Trainee result = traineeService.createTrainee(trainee);
 
         assertNotNull(result.getId());
-        assertTrue(result.getId() > 0);
-        verify(traineeRepositoryPort).save(result);
+        verify(userRepo).findById(1L);
+        verify(traineeRepo).save(any(Trainee.class));
     }
 
     @Test
-    void updateTrainee_ShouldCallSaveAndReturnUpdated() {
+    void createTrainee_ShouldThrow_WhenUserDoesNotExist() {
         Trainee trainee = new Trainee();
-        trainee.setId(10L);
+        trainee.setUserId(99L);
+        trainee.setAddress("Address");
+        trainee.setDateOfBirth(LocalDate.of(1995, 5, 5));
 
-        when(traineeRepositoryPort.save(any(Trainee.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepo.findById(99L)).thenReturn(null);
 
-        Trainee updated = traineeService.updateTrainee(trainee);
-
-        verify(traineeRepositoryPort).save(trainee);
-        assertSame(trainee, updated);
+        assertThrows(IllegalStateException.class,
+                () -> traineeService.createTrainee(trainee));
+        verify(userRepo).findById(99L);
     }
 
     @Test
-    void getTrainee_ShouldReturnFromRepository() {
+    void updateTrainee_ShouldValidateAndSave() {
+        Trainee trainee = new Trainee();
+        trainee.setId(20L);
+        trainee.setUserId(2L);
+        trainee.setAddress("Upd Street");
+        trainee.setDateOfBirth(LocalDate.of(1992, 2, 2));
+
+        when(traineeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        Trainee result = traineeService.updateTrainee(trainee);
+
+        assertEquals(20L, result.getId());
+        verify(traineeRepo).save(trainee);
+    }
+
+    @Test
+    void getTrainee_ShouldReturnEntity() {
         Trainee expected = new Trainee();
         expected.setId(55L);
 
-        when(traineeRepositoryPort.findById(55L)).thenReturn(expected);
+        when(traineeRepo.findById(55L)).thenReturn(expected);
 
-        Trainee actual = traineeService.getTrainee(55L);
+        Trainee result = traineeService.getTrainee(55L);
 
-        assertSame(expected, actual);
-        verify(traineeRepositoryPort).findById(55L);
+        assertSame(expected, result);
+        verify(traineeRepo).findById(55L);
     }
 
     @Test
-    void deleteTrainee_ShouldDelegateToRepository() {
-        doNothing().when(traineeRepositoryPort).delete(123L);
+    void deleteTrainee_ShouldCallRepository() {
+        traineeService.deleteTrainee(88L);
 
-        traineeService.deleteTrainee(123L);
-
-        verify(traineeRepositoryPort).delete(123L);
+        verify(traineeRepo).delete(88L);
     }
 }

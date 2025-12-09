@@ -2,191 +2,179 @@ package org.gym.facade;
 
 import org.gym.domain.model.*;
 import org.gym.domain.port.in.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@ExtendWith(MockitoExtension.class)
-public class GymFacadeTest {
+class GymFacadeTest {
 
-    @Mock
-    private UserManagementPort userManagementPort;
-    @Mock
-    private TrainerManagementPort trainerManagementPort;
-    @Mock
-    private TraineeManagementPort traineeManagementPort;
-    @Mock
-    private TrainingManagementPort trainingManagementPort;
-    @Mock
-    private TrainingTypeManagementPort trainingTypeManagementPort;
+    private UserManagementPort userPort;
+    private TrainerManagementPort trainerPort;
+    private TraineeManagementPort traineePort;
+    private TrainingManagementPort trainingPort;
+    private TrainingTypeManagementPort typePort;
 
-    @InjectMocks
-    private GymFacade facade;
+    private GymFacade gymFacade;
+
+    @BeforeEach
+    void setUp() {
+        userPort = mock(UserManagementPort.class);
+        trainerPort = mock(TrainerManagementPort.class);
+        traineePort = mock(TraineeManagementPort.class);
+        trainingPort = mock(TrainingManagementPort.class);
+        typePort = mock(TrainingTypeManagementPort.class);
+
+        gymFacade = new GymFacade(
+                userPort,
+                trainerPort,
+                traineePort,
+                trainingPort,
+                typePort
+        );
+    }
+
 
     @Test
-    void createUser_delegaEnUserManagementPort() {
-        User user = mock(User.class);
-        when(userManagementPort.createUser(user)).thenReturn(user);
+    void createUser_ShouldDelegateToUserService() {
+        User u = new User();
+        when(userPort.createUser(u)).thenReturn(u);
 
-        User result = facade.createUser(user);
+        User result = gymFacade.createUser(u);
 
-        assertSame(user, result);
-        verify(userManagementPort).createUser(user);
+        assertSame(u, result);
+        verify(userPort).createUser(u);
     }
 
     @Test
-    void updateUser_delegaEnUserManagementPort() {
-        User user = mock(User.class);
-        when(userManagementPort.updateUser(user)).thenReturn(user);
+    void updateUser_ShouldCallUserService() {
+        User u = new User();
+        u.setId(10L);
+        when(userPort.updateUser(u)).thenReturn(u);
 
-        User result = facade.updateUser(user);
+        User result = gymFacade.updateUser(u);
 
-        assertSame(user, result);
-        verify(userManagementPort).updateUser(user);
+        assertSame(u, result);
+        verify(userPort).updateUser(u);
     }
 
     @Test
-    void getUser_delegaEnUserManagementPort() {
-        User user = mock(User.class);
-        when(userManagementPort.getUser(1L)).thenReturn(user);
+    void getUser_ShouldCallUserService() {
+        User expected = new User();
+        expected.setId(22L);
 
-        User result = facade.getUser(1L);
+        when(userPort.getUser(22L)).thenReturn(expected);
 
-        assertSame(user, result);
-        verify(userManagementPort).getUser(1L);
+        User result = gymFacade.getUser(22L);
+
+        assertSame(expected, result);
+        verify(userPort).getUser(22L);
     }
 
-    @Test
-    void createTrainer_delegaEnTrainerManagementPort() {
-        Trainer trainer = mock(Trainer.class);
-        when(trainerManagementPort.createTrainer(trainer)).thenReturn(trainer);
 
-        Trainer result = facade.createTrainer(trainer);
+    @Test
+    void createTrainer_ShouldDelegateToTrainerService() {
+        Trainer trainer = new Trainer();
+        when(trainerPort.createTrainer(trainer)).thenReturn(trainer);
+
+        Trainer result = gymFacade.createTrainer(trainer);
 
         assertSame(trainer, result);
-        verify(trainerManagementPort).createTrainer(trainer);
+        verify(trainerPort).createTrainer(trainer);
     }
 
     @Test
-    void updateTrainer_delegaEnTrainerManagementPort() {
-        Trainer trainer = mock(Trainer.class);
-        when(trainerManagementPort.updateTrainer(trainer)).thenReturn(trainer);
+    void getTrainer_ShouldCallTrainerService() {
+        Trainer trainer = new Trainer();
+        trainer.setId(30L);
 
-        Trainer result = facade.updateTrainer(trainer);
+        when(trainerPort.getTrainer(30L)).thenReturn(trainer);
+
+        Trainer result = gymFacade.getTrainer(30L);
 
         assertSame(trainer, result);
-        verify(trainerManagementPort).updateTrainer(trainer);
+        verify(trainerPort).getTrainer(30L);
     }
 
     @Test
-    void getTrainer_delegaEnTrainerManagementPort() {
-        Trainer trainer = mock(Trainer.class);
-        when(trainerManagementPort.getTrainer(2L)).thenReturn(trainer);
+    void createTrainee_ShouldDelegateToTraineeService() {
+        Trainee t = new Trainee();
+        when(traineePort.createTrainee(t)).thenReturn(t);
 
-        Trainer result = facade.getTrainer(2L);
+        Trainee result = gymFacade.createTrainee(t);
 
-        assertSame(trainer, result);
-        verify(trainerManagementPort).getTrainer(2L);
+        assertSame(t, result);
+        verify(traineePort).createTrainee(t);
     }
 
     @Test
-    void createTrainee_delegaEnTraineeManagementPort() {
-        Trainee trainee = mock(Trainee.class);
-        when(traineeManagementPort.createTrainee(trainee)).thenReturn(trainee);
+    void deleteTrainee_ShouldCallTraineeService() {
+        gymFacade.deleteTrainee(55L);
+        verify(traineePort).deleteTrainee(55L);
+    }
 
-        Trainee result = facade.createTrainee(trainee);
 
-        assertSame(trainee, result);
-        verify(traineeManagementPort).createTrainee(trainee);
+    @Test
+    void createTraining_ShouldDelegateToTrainingService() {
+        Training tr = new Training();
+        when(trainingPort.createTraining(tr)).thenReturn(tr);
+
+        Training result = gymFacade.createTraining(tr);
+
+        assertSame(tr, result);
+        verify(trainingPort).createTraining(tr);
     }
 
     @Test
-    void updateTrainee_delegaEnTraineeManagementPort() {
-        Trainee trainee = mock(Trainee.class);
-        when(traineeManagementPort.updateTrainee(trainee)).thenReturn(trainee);
+    void getTraining_ShouldCallTrainingService() {
+        Training tr = new Training();
+        tr.setId(44L);
 
-        Trainee result = facade.updateTrainee(trainee);
+        when(trainingPort.getTraining(44L)).thenReturn(tr);
 
-        assertSame(trainee, result);
-        verify(traineeManagementPort).updateTrainee(trainee);
+        Training result = gymFacade.getTraining(44L);
+
+        assertSame(tr, result);
+        verify(trainingPort).getTraining(44L);
     }
 
-    @Test
-    void getTrainee_delegaEnTraineeManagementPort() {
-        Trainee trainee = mock(Trainee.class);
-        when(traineeManagementPort.getTrainee(3L)).thenReturn(trainee);
 
-        Trainee result = facade.getTrainee(3L);
-
-        assertSame(trainee, result);
-        verify(traineeManagementPort).getTrainee(3L);
-    }
 
     @Test
-    void deleteTrainee_delegaEnTraineeManagementPort() {
-        facade.deleteTrainee(4L);
+    void createTrainingType_ShouldDelegateToService() {
+        TrainingType type = new TrainingType();
+        when(typePort.create(type)).thenReturn(type);
 
-        verify(traineeManagementPort).deleteTrainee(4L);
-    }
-
-    @Test
-    void createTraining_delegaEnTrainingManagementPort() {
-        Training training = mock(Training.class);
-        when(trainingManagementPort.createTraining(training)).thenReturn(training);
-
-        Training result = facade.createTraining(training);
-
-        assertSame(training, result);
-        verify(trainingManagementPort).createTraining(training);
-    }
-
-    @Test
-    void getTraining_delegaEnTrainingManagementPort() {
-        Training training = mock(Training.class);
-        when(trainingManagementPort.getTraining(5L)).thenReturn(training);
-
-        Training result = facade.getTraining(5L);
-
-        assertSame(training, result);
-        verify(trainingManagementPort).getTraining(5L);
-    }
-
-    @Test
-    void createTrainingType_delegaEnTrainingTypeManagementPort() {
-        TrainingType type = mock(TrainingType.class);
-        when(trainingTypeManagementPort.create(type)).thenReturn(type);
-
-        TrainingType result = facade.createTrainingType(type);
+        TrainingType result = gymFacade.createTrainingType(type);
 
         assertSame(type, result);
-        verify(trainingTypeManagementPort).create(type);
+        verify(typePort).create(type);
     }
 
     @Test
-    void getTrainingType_delegaEnTrainingTypeManagementPort() {
-        TrainingType type = mock(TrainingType.class);
-        when(trainingTypeManagementPort.get(6L)).thenReturn(type);
+    void updateTrainingType_ShouldCallService() {
+        TrainingType type = new TrainingType();
+        type.setId(66L);
 
-        TrainingType result = facade.getTrainingType(6L);
+        when(typePort.update(type)).thenReturn(type);
+
+        TrainingType result = gymFacade.updateTrainingType(type);
 
         assertSame(type, result);
-        verify(trainingTypeManagementPort).get(6L);
+        verify(typePort).update(type);
     }
 
     @Test
-    void updateTrainingType_delegaEnTrainingTypeManagementPort() {
-        TrainingType type = mock(TrainingType.class);
-        when(trainingTypeManagementPort.update(type)).thenReturn(type);
+    void getTrainingType_ShouldCallService() {
+        TrainingType type = new TrainingType();
+        type.setId(77L);
 
-        TrainingType result = facade.updateTrainingType(type);
+        when(typePort.get(77L)).thenReturn(type);
+
+        TrainingType result = gymFacade.getTrainingType(77L);
 
         assertSame(type, result);
-        verify(trainingTypeManagementPort).update(type);
+        verify(typePort).get(77L);
     }
 }
-

@@ -3,54 +3,63 @@ package org.gym.application.service;
 import org.gym.domain.model.User;
 import org.gym.domain.port.in.UserManagementPort;
 import org.gym.domain.port.out.UserRepositoryPort;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.gym.util.generator.IdGenerator;
+import org.gym.util.generator.PasswordGenerator;
+import org.gym.util.generator.UserNameGenerator;
+import org.gym.util.validator.UserValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
+
 
 @Service
 public class UserService implements UserManagementPort {
 
-    private UserRepositoryPort userRepositoryPort;
-    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
+    private final UserRepositoryPort userRepositoryPort;
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
 
     public UserService(UserRepositoryPort userRepositoryPort) {
-        this.userRepositoryPort = userRepositoryPort;
+        this.userRepositoryPort = Objects.requireNonNull(userRepositoryPort);
     }
 
-    @Autowired
-    public void setRepo(UserRepositoryPort userRepositoryPort) {
-        this.userRepositoryPort = userRepositoryPort;
-    }
-
-    private String generateRandomPassword(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(CHARS.charAt(RANDOM.nextInt(CHARS.length())));
-        }
-        return sb.toString();
-    }
 
 
     @Override
     public User createUser(User user) {
 
-        if(user.getId() == null){
-            user.setId(System.currentTimeMillis());
-        }
-        String username = user.getFirstName() + "." + user.getLastName();
-        user.setUsername(username);
-        user.setPassword(generateRandomPassword(10));
+        logger.info("createUser -start: {} {}", user.getFirstName(), user.getLastName());
+        UserValidator.validateUserForCreate(user);
 
-        return userRepositoryPort.save(user);
+        if(user.getId() == null){
+            user.setId(IdGenerator.generateId());
+        }
+        String username = UserNameGenerator.generateUserNameUnique(user, userRepositoryPort);
+        user.setUsername(username);
+        user.setPassword(PasswordGenerator.generateRandomPassword(10));
+
+        User saved = userRepositoryPort.save(user);
+        logger.info("createUser - done: id={}, username={}", saved.getId(), saved.getUsername());
+        return saved;
     }
 
     @Override
     public User updateUser(User user) {
-        return userRepositoryPort.save(user);
+
+        logger.info("updateUser - start id={}", user.getId());
+        UserValidator.validateForUpdate(user);
+        User saved = userRepositoryPort.save(user);
+        logger.info("updateUser - done id={}", saved.getId());
+        return saved;
     }
 
     @Override
     public User getUser(Long id) {
+
+        logger.debug("getUser id={}", id);
+        if (id == null) return null;
         return userRepositoryPort.findById(id);
     }
 }
