@@ -38,11 +38,14 @@ class GymFacadeTest {
 
     @Test
     void createUser_ShouldDelegateToUserService() {
+        //arrange
         User u = new User();
-        when(userPort.createUser(u)).thenReturn(u);
 
+        when(userPort.createUser(u)).thenReturn(u);
+        //Act
         User result = gymFacade.createUser(u);
 
+        //Assert
         assertSame(u, result);
         verify(userPort).createUser(u);
     }

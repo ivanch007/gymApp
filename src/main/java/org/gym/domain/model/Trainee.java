@@ -1,14 +1,19 @@
 package org.gym.domain.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+
 import java.time.LocalDate;
 
+@Entity
+@Table()
 public class Trainee {
     private Long id;
     private Long userId;
     private LocalDate dateOfBirth;
     private String address;
 
-    public Trainee() {
+    public Trainee()  {
 
     }
 
