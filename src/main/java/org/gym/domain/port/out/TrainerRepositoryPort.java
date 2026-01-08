@@ -7,6 +7,7 @@ import java.util.List;
 public interface TrainerRepositoryPort {
     Trainer save(Trainer trainer);
     Trainer findById(Long id);
+    Trainer findByUsername(String username);
     List<Trainer> findAll();
 
 }

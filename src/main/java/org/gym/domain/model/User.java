@@ -30,7 +30,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-
-    private boolean isActive = true;
+    @Column(nullable = false)
+    private boolean isActive;
 
 }

@@ -7,21 +7,21 @@ public final class TrainingTypeValidator {
     private TrainingTypeValidator(){}
 
     public static void validateForCreate(TrainingType trainingType){
-
         if (trainingType == null) {
-            throw new IllegalArgumentException("TrainingType cannot be null");
+            throw new IllegalArgumentException("TrainingType object cannot be null");
         }
+
         if (trainingType.getTrainingTypeName() == null || trainingType.getTrainingTypeName().isBlank()) {
-            throw new IllegalArgumentException("TrainingType name is required");
+            throw new IllegalArgumentException("Training type name is required");
         }
     }
 
     public static void validateForUpdate(TrainingType trainingType) {
         if (trainingType == null)
-            throw new IllegalArgumentException("TrainingType cannot be null");
+            throw new IllegalArgumentException("TrainingType object cannot be null");
 
         if (trainingType.getId() == null)
-            throw new IllegalArgumentException("TrainingType ID is required for update");
+            throw new IllegalArgumentException("TrainingType ID is required for update operations");
 
         validateForCreate(trainingType);
     }

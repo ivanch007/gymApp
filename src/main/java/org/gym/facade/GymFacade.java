@@ -4,94 +4,108 @@ import org.gym.domain.model.*;
 import org.gym.domain.port.in.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.time.LocalDate;
+import java.util.List;
+
+@Component
 public class GymFacade {
 
     private static final Logger logger = LoggerFactory.getLogger(GymFacade.class);
 
-    private final UserManagementPort userManagementPort;
-    private final TrainerManagementPort trainerManagementPort;
+    private final AuthManagementPort authManagementPort;
     private final TraineeManagementPort traineeManagementPort;
+    private final TrainerManagementPort trainerManagementPort;
     private final TrainingManagementPort trainingManagementPort;
     private final TrainingTypeManagementPort trainingTypeManagementPort;
+    private final UserManagementPort userManagementPort;
 
-    public GymFacade(UserManagementPort userManagementPort, TrainerManagementPort trainerManagementPort, TraineeManagementPort traineeManagementPort, TrainingManagementPort trainingManagementPort, TrainingTypeManagementPort trainingTypeManagementPort) {
-        this.userManagementPort = userManagementPort;
-        this.trainerManagementPort = trainerManagementPort;
+
+    public GymFacade(AuthManagementPort authManagementPort,
+                     TraineeManagementPort traineeManagementPort,
+                     TrainerManagementPort trainerManagementPort,
+                     TrainingManagementPort trainingManagementPort,
+                     TrainingTypeManagementPort trainingTypeManagementPort,
+                     UserManagementPort userManagementPort) {
+        this.authManagementPort = authManagementPort;
         this.traineeManagementPort = traineeManagementPort;
+        this.trainerManagementPort = trainerManagementPort;
         this.trainingManagementPort = trainingManagementPort;
         this.trainingTypeManagementPort = trainingTypeManagementPort;
+        this.userManagementPort = userManagementPort;
     }
 
-    //User
-    public User createUser(User user) {
-        logger.info("Facade: Creating user");
-        return userManagementPort.createUser(user);
-    }
-    public User updateUser(User user) {
-        logger.info("Facade: Updating user id={}", user.getId());
-        return userManagementPort.updateUser(user);
-    }
-    public User getUser(Long id) {
-        logger.info("Facade: Getting user id={}", id);
-        return userManagementPort.getUser(id);
+    // --- Authentication & Security ---
+    public boolean authenticate(String username, String password) {
+        return authManagementPort.authenticate(username, password);
     }
 
-    //Trainer
-    public Trainer createTrainer(Trainer trainer) {
-        logger.info("Facade: Creating trainer");
-        return trainerManagementPort.createTrainer(trainer);
-    }
-    public Trainer updateTrainer(Trainer trainer) {
-        logger.info("Facade: Updating trainer id={}", trainer.getId());
-        return trainerManagementPort.updateTrainer(trainer);
-    }
-    public Trainer getTrainer(Long id) {
-        logger.info("Facade: Getting trainer id={}", id);
-        return trainerManagementPort.getTrainer(id);
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        authManagementPort.changePassword(username, oldPassword, newPassword);
     }
 
-    //Trainee
+    public void toggleUserStatus(String username, String password) {
+        authManagementPort.toggleStatus(username, password);
+    }
+
+    // --- Trainee ---
     public Trainee createTrainee(Trainee trainee) {
         logger.info("Facade: Creating trainee");
         return traineeManagementPort.createTrainee(trainee);
     }
-    public Trainee updateTrainee(Trainee trainee) {
-        logger.info("Facade: Updating trainee id={}", trainee.getId());
-        return traineeManagementPort.updateTrainee(trainee);
-    }
-    public Trainee getTrainee(Long id) {
-        logger.info("Facade: Getting trainee id={}", id);
-        return traineeManagementPort.getTrainee(id);
-    }
-    public void deleteTrainee(Long id) {
-        logger.info("Facade: Deleting trainee id={}", id);
-        traineeManagementPort.deleteTrainee(id);
+
+    public Trainee updateTrainee(String username, String password, Trainee trainee) {
+        return traineeManagementPort.updateTrainee(username, password, trainee);
     }
 
-    //Training
+    public Trainee getTrainee(String username) {
+        return traineeManagementPort.getTrainee(username);
+    }
+
+    public void deleteTrainee(String username, String password) {
+        logger.info("Facade: Deleting trainee: {}", username);
+        traineeManagementPort.deleteTrainee(username, password);
+    }
+
+    // --- Trainer ---
+    public Trainer createTrainer(Trainer trainer) {
+        logger.info("Facade: Creating trainer");
+        return trainerManagementPort.createTrainer(trainer);
+    }
+
+    public Trainer updateTrainer(String username, String password, Trainer trainer) {
+        return trainerManagementPort.updateTrainer(username, password, trainer);
+    }
+
+    public Trainer getTrainer(String username) {
+        return trainerManagementPort.getTrainer(username);
+    }
+
+    // --- Training (Reportes Dinámicos) ---
     public Training createTraining(Training training) {
-        logger.info("Facade: Creating training");
         return trainingManagementPort.createTraining(training);
     }
-    public Training getTraining(Long id) {
-        logger.info("Facade: Getting training id={}", id);
-        return trainingManagementPort.getTraining(id);
+
+    public List<Training> getTraineeTrainings(String username, LocalDate from, LocalDate to, String trainerName, String type) {
+        return trainingManagementPort.getTraineeTrainings(username, from, to, trainerName, type);
     }
 
-    //TrainingType
-    public TrainingType createTrainingType(TrainingType trainingType) {
-        logger.info("Facade: Creating training type");
-        return trainingTypeManagementPort.create(trainingType);
+    public List<Training> getTrainerTrainings(String username, LocalDate from, LocalDate to, String traineeName) {
+        return trainingManagementPort.getTrainerTrainings(username, from, to, traineeName);
     }
+
+    // --- TrainingType (Catálogo) ---
+    public TrainingType createTrainingType(TrainingType type) {
+        return trainingTypeManagementPort.create(type);
+    }
+
     public TrainingType getTrainingType(Long id) {
-        logger.info("Facade: Getting training type id={}", id);
         return trainingTypeManagementPort.get(id);
     }
-    public TrainingType updateTrainingType(TrainingType trainingType) {
-        logger.info("Facade: Updating training type id={}", trainingType.getId());
-        return trainingTypeManagementPort.update(trainingType);
+
+    // --- User Management ---
+    public User getUserByUsername(String username) {
+        return userManagementPort.getUserByUsername(username);
     }
 }

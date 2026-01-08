@@ -1,37 +1,37 @@
 package org.gym.domain.model;
 
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.Set;
+
+@Entity
+@Table(name = "trainers")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Trainer {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
-    private Long userId;
-    private String specialization;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    @ManyToOne
+    @JoinColumn(name = "specialization_id", nullable = false)
+    private TrainingType specialization;
 
 
-    public Trainer() {
-
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public String getSpecialization() {
-        return specialization;
-    }
-
-    public void setSpecialization(String specialization) {
-        this.specialization = specialization;
-    }
+    @ManyToMany
+    @JoinTable(
+            name = "trainer_trainee",
+            joinColumns = @JoinColumn(name = "trainer_id"),
+            inverseJoinColumns = @JoinColumn(name = "trainee_id"))
+    private Set<Trainee> trainees;
 }

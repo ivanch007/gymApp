@@ -4,179 +4,162 @@ import org.gym.domain.model.Trainee;
 import org.gym.domain.model.Trainer;
 import org.gym.domain.model.Training;
 import org.gym.domain.model.TrainingType;
-import org.gym.domain.port.out.TraineeRepositoryPort;
-import org.gym.domain.port.out.TrainerRepositoryPort;
-import org.gym.domain.port.out.TrainingRepositoryPort;
-import org.gym.domain.port.out.TrainingTypeRepositoryPort;
-import org.gym.util.generator.IdGenerator;
 import org.gym.util.validator.TrainingValidator;
+import org.gym.domain.port.out.TrainingRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 class TrainingServiceTest {
 
     private TrainingRepositoryPort trainingRepo;
-    private TraineeRepositoryPort traineeRepo;
-    private TrainerRepositoryPort trainerRepo;
-    private TrainingTypeRepositoryPort typeRepo;
-
     private TrainingService trainingService;
 
     @BeforeEach
     void setUp() {
         trainingRepo = mock(TrainingRepositoryPort.class);
-        traineeRepo = mock(TraineeRepositoryPort.class);
-        trainerRepo = mock(TrainerRepositoryPort.class);
-        typeRepo = mock(TrainingTypeRepositoryPort.class);
-
-        trainingService = new TrainingService(
-                trainingRepo,
-                traineeRepo,
-                trainerRepo,
-                typeRepo
-        );
+        trainingService = new TrainingService(trainingRepo);
     }
 
-
     @Test
-    void createTraining_ShouldGenerateId_WhenIdIsNull() {
+    void createTraining_ShouldSaveAndReturnAssignedId_WhenValid() {
         Training training = validTraining();
         training.setId(null);
 
-        mockAssociationsExist();
-        when(trainingRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(trainingRepo.save(any())).thenAnswer(inv -> {
+            Training t = inv.getArgument(0);
+            t.setId(111L);
+            return t;
+        });
 
-        try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class);
-             MockedStatic<IdGenerator> idGen = mockStatic(IdGenerator.class)) {
-
+        try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class)) {
             validator.when(() -> TrainingValidator.validateForCreate(training)).thenAnswer(inv -> null);
-
 
             Training saved = trainingService.createTraining(training);
 
             assertNotNull(saved.getId());
             assertEquals(111L, saved.getId());
-            verify(trainingRepo).save(saved);
-        }
-    }
-
-    @Test
-    void createTraining_ShouldNotOverwriteId_WhenIdExists() {
-        Training training = validTraining();
-        training.setId(999L);
-
-        mockAssociationsExist();
-        when(trainingRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class)) {
-            validator.when(() -> TrainingValidator.validateForCreate(training)).thenAnswer(inv -> null);
-
-            Training saved = trainingService.createTraining(training);
-
-            assertEquals(999L, saved.getId());
             verify(trainingRepo).save(training);
         }
     }
 
     @Test
-    void createTraining_ShouldThrow_WhenTrainerDoesNotExist() {
+    void createTraining_ShouldPropagatePersistenceException() {
         Training training = validTraining();
+        training.setId(null);
 
-        when(trainerRepo.findById(training.getTrainerUserId())).thenReturn(null);
-        when(traineeRepo.findById(anyLong())).thenReturn(new Trainee());
-        when(typeRepo.findById(anyLong())).thenReturn(new TrainingType());
+        when(trainingRepo.save(any())).thenThrow(new RuntimeException("DB error"));
 
         try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class)) {
             validator.when(() -> TrainingValidator.validateForCreate(training)).thenAnswer(inv -> null);
 
-            assertThrows(IllegalStateException.class,
-                    () -> trainingService.createTraining(training),
-                    "Training must fail if trainer does not exist");
-            verify(trainerRepo).findById(training.getTrainerUserId());
+            RuntimeException ex = assertThrows(RuntimeException.class,
+                    () -> trainingService.createTraining(training));
+            assertEquals("DB error", ex.getMessage());
+            verify(trainingRepo).save(training);
         }
     }
 
     @Test
-    void createTraining_ShouldThrow_WhenTraineeDoesNotExist() {
+    void createTraining_ShouldNotCallSave_WhenValidatorThrows() {
         Training training = validTraining();
-
-        when(trainerRepo.findById(anyLong())).thenReturn(new Trainer());
-        when(traineeRepo.findById(training.getTraineeUserId())).thenReturn(null);
-        when(typeRepo.findById(anyLong())).thenReturn(new TrainingType());
+        training.setId(null);
 
         try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class)) {
-            validator.when(() -> TrainingValidator.validateForCreate(training)).thenAnswer(inv -> null);
+            validator.when(() -> TrainingValidator.validateForCreate(training))
+                    .thenThrow(new IllegalArgumentException("invalid request"));
 
-            assertThrows(IllegalStateException.class,
-                    () -> trainingService.createTraining(training),
-                    "Training must fail if trainee does not exist");
-            verify(traineeRepo).findById(training.getTraineeUserId());
+            assertThrows(IllegalArgumentException.class,
+                    () -> trainingService.createTraining(training));
+            verifyNoInteractions(trainingRepo);
         }
     }
 
     @Test
-    void createTraining_ShouldThrow_WhenTrainingTypeDoesNotExist() {
-        Training training = validTraining();
+    void getTraineeTrainings_ShouldReturnList_WhenFound() {
+        String username = "user1";
+        LocalDate from = LocalDate.now().minusDays(7);
+        LocalDate to = LocalDate.now();
+        String trainerName = "trainerA";
+        String trainingType = "CARDIO";
 
-        when(trainerRepo.findById(anyLong())).thenReturn(new Trainer());
-        when(traineeRepo.findById(anyLong())).thenReturn(new Trainee());
-        when(typeRepo.findById(training.getTrainingTypeId())).thenReturn(null);
+        List<Training> expected = Arrays.asList(new Training(), new Training());
+        when(trainingRepo.findTraineeTrainingsByCriteria(username, from, to, trainerName, trainingType))
+                .thenReturn(expected);
 
-        try (MockedStatic<TrainingValidator> validator = mockStatic(TrainingValidator.class)) {
-            validator.when(() -> TrainingValidator.validateForCreate(training)).thenAnswer(inv -> null);
-
-            assertThrows(IllegalStateException.class,
-                    () -> trainingService.createTraining(training),
-                    "Training must fail if training type does not exist");
-            verify(typeRepo).findById(training.getTrainingTypeId());
-        }
-    }
-
-
-    @Test
-    void getTraining_ShouldReturnEntity_WhenExists() {
-        Training expected = new Training();
-        expected.setId(123L);
-
-        when(trainingRepo.findById(123L)).thenReturn(expected);
-
-        Training result = trainingService.getTraining(123L);
+        List<Training> result = trainingService.getTraineeTrainings(username, from, to, trainerName, trainingType);
 
         assertSame(expected, result);
-        verify(trainingRepo).findById(123L);
+        verify(trainingRepo).findTraineeTrainingsByCriteria(username, from, to, trainerName, trainingType);
     }
 
     @Test
-    void getTraining_ShouldReturnNull_WhenNotFound() {
-        when(trainingRepo.findById(999L)).thenReturn(null);
+    void getTraineeTrainings_ShouldReturnEmptyList_WhenNone() {
+        when(trainingRepo.findTraineeTrainingsByCriteria(any(), any(), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
 
-        Training result = trainingService.getTraining(999L);
+        List<Training> result = trainingService.getTraineeTrainings("u", null, null, null, null);
 
-        assertNull(result);
+        assertTrue(result.isEmpty());
+        verify(trainingRepo).findTraineeTrainingsByCriteria("u", null, null, null, null);
     }
 
+    @Test
+    void getTrainerTrainings_ShouldReturnList_WhenFound() {
+        String username = "trainer1";
+        LocalDate from = LocalDate.now().minusDays(30);
+        LocalDate to = LocalDate.now();
+        String traineeName = "traineeX";
+
+        List<Training> expected = Arrays.asList(new Training());
+        when(trainingRepo.findTrainerTrainingsByCriteria(username, from, to, traineeName))
+                .thenReturn(expected);
+
+        List<Training> result = trainingService.getTrainerTrainings(username, from, to, traineeName);
+
+        assertEquals(1, result.size());
+        verify(trainingRepo).findTrainerTrainingsByCriteria(username, from, to, traineeName);
+    }
+
+    @Test
+    void getTrainerTrainings_ShouldReturnEmptyList_WhenNone() {
+        when(trainingRepo.findTrainerTrainingsByCriteria(any(), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+
+        List<Training> result = trainingService.getTrainerTrainings("t", null, null, null);
+
+        assertTrue(result.isEmpty());
+        verify(trainingRepo).findTrainerTrainingsByCriteria("t", null, null, null);
+    }
+
+    // helpers
+
     private Training validTraining() {
+        Trainee trainee = new Trainee();
+        trainee.setId(100L);
+
+        Trainer trainer = new Trainer();
+        trainer.setId(200L);
+
+        TrainingType trainingType = new TrainingType();
+        trainingType.setId(300L);
+
         Training t = new Training();
-        t.setTraineeUserId(100L);
-        t.setTrainerUserId(200L);
-        t.setTrainingTypeId(300L);
+        t.setTrainee(trainee);
+        t.setTrainer(trainer);
+        t.setTrainingType(trainingType);
         t.setTrainingName("Morning Session");
         t.setDuration(60);
         t.setDate(LocalDate.now());
         return t;
     }
 
-    private void mockAssociationsExist() {
-        when(trainerRepo.findById(anyLong())).thenReturn(new Trainer());
-        when(traineeRepo.findById(anyLong())).thenReturn(new Trainee());
-        when(typeRepo.findById(anyLong())).thenReturn(new TrainingType());
-    }
 }

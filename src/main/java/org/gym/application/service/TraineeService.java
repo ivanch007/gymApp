@@ -1,11 +1,15 @@
 package org.gym.application.service;
 
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.gym.domain.model.Trainee;
 import org.gym.domain.model.User;
 import org.gym.domain.port.in.TraineeManagementPort;
 import org.gym.domain.port.out.TraineeRepositoryPort;
 import org.gym.domain.port.out.UserRepositoryPort;
-import org.gym.util.generator.IdGenerator;
+import org.gym.util.generator.PasswordGenerator;
+import org.gym.util.generator.UserNameGenerator;
+import org.gym.util.validator.AuthValidator;
 import org.gym.util.validator.TraineeValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,55 +20,66 @@ public class TraineeService implements TraineeManagementPort {
 
     private final TraineeRepositoryPort traineeRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
+    private final AuthValidator authValidator;
 
     private static final Logger logger = LoggerFactory.getLogger(TraineeService.class);
 
     public TraineeService(TraineeRepositoryPort traineeRepositoryPort,
-                          UserRepositoryPort userRepositoryPort) {
+                          UserRepositoryPort userRepositoryPort,
+                          AuthValidator authValidator) {
         this.traineeRepositoryPort = traineeRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
+        this.authValidator = authValidator;
     }
 
-
     @Override
+    @Transactional
     public Trainee createTrainee(Trainee trainee) {
-
         logger.info("createTrainee - start");
-
         TraineeValidator.validateForCreate(trainee);
 
-        User user = userRepositoryPort.findById(trainee.getUserId());
-        if (user == null)
-            throw new IllegalStateException("Associated user not found with id=" + trainee.getUserId());
+        User user = trainee.getUser();
+        user.setUsername(UserNameGenerator.generateUserNameUnique(user, userRepositoryPort));
+        user.setPassword(PasswordGenerator.generateRandomPassword(10));
+        user.setActive(true);
 
-        if (trainee.getId() == null)
-            trainee.setId(IdGenerator.generateId());
-
-        Trainee saved = traineeRepositoryPort.save(trainee);
-        logger.info("createTrainee - done id={}", saved.getId());
-        return saved;
+        return traineeRepositoryPort.save(trainee);
     }
 
     @Override
-    public Trainee updateTrainee(Trainee trainee) {
-        logger.info("updateTrainee - start id={}", trainee.getId());
+    @Transactional
+    public Trainee updateTrainee(String username, String password, Trainee trainee) {
+        logger.info("updateTrainee - start for: {}", username);
 
-        TraineeValidator.validateForUpdate(trainee);
+        authValidator.validateCredentials(username, password);
 
-        Trainee saved = traineeRepositoryPort.save(trainee);
-        logger.info("updateTrainee - done id={}", saved.getId());
-        return saved;
+        Trainee existingTrainee = traineeRepositoryPort.findByUsername(username);
+        if (existingTrainee == null){
+            throw new EntityNotFoundException("Trainee not found");
+        }
+
+        existingTrainee.setAddress(trainee.getAddress());
+        existingTrainee.setDateOfBirth(trainee.getDateOfBirth());
+
+        if (trainee.getUser() != null) {
+            existingTrainee.getUser().setFirstName(trainee.getUser().getFirstName());
+            existingTrainee.getUser().setLastName(trainee.getUser().getLastName());
+        }
+
+        return traineeRepositoryPort.save(existingTrainee);
     }
 
     @Override
-    public Trainee getTrainee(Long id) {
-        logger.debug("getTrainee id={}", id);
-        return traineeRepositoryPort.findById(id);
+    public Trainee getTrainee(String username) {
+        return traineeRepositoryPort.findByUsername(username);
     }
 
     @Override
-    public void deleteTrainee(Long id) {
-        logger.info("deleteTrainee - id={}", id);
-        traineeRepositoryPort.delete(id);
+    @Transactional
+    public void deleteTrainee(String username, String password) {
+        logger.info("Attempting hard delete for trainee: {}", username);
+        authValidator.validateCredentials(username, password);
+        traineeRepositoryPort.delete(username);
+        logger.info("Trainee {} and relevant trainings deleted.", username);
     }
 }

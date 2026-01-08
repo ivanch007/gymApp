@@ -8,16 +8,16 @@ public final class TrainingValidator {
 
     public static void validateForCreate(Training training) {
         if (training == null)
-            throw new IllegalArgumentException("Training cannot be null");
+            throw new IllegalArgumentException("Training object cannot be null");
 
-        if (training.getTrainerUserId() == null)
-            throw new IllegalArgumentException("Training.trainerUserId is required");
+        if (training.getTrainer() == null)
+            throw new IllegalArgumentException("Trainer is required");
 
-        if (training.getTraineeUserId() == null)
-            throw new IllegalArgumentException("Training.traineeUserId is required");
+        if (training.getTrainee() == null)
+            throw new IllegalArgumentException("Trainee is required");
 
-        if (training.getTrainingTypeId() == null)
-            throw new IllegalArgumentException("Training.trainingType is required");
+        if (training.getTrainingType() == null)
+            throw new IllegalArgumentException("Training type is required");
 
         if (training.getTrainingName() == null || training.getTrainingName().isBlank())
             throw new IllegalArgumentException("Training name is required");
@@ -25,17 +25,7 @@ public final class TrainingValidator {
         if (training.getDate() == null)
             throw new IllegalArgumentException("Training date is required");
 
-        if (training.getDuration() <= 0)
-            throw new IllegalArgumentException("Training duration must be positive");
-    }
-
-    public static void validateForUpdate(Training training) {
-        if (training == null)
-            throw new IllegalArgumentException("Training cannot be null");
-
-        if (training.getId() == null)
-            throw new IllegalArgumentException("Training ID is required for update");
-
-        validateForCreate(training);
+        if (training.getDuration() == null || training.getDuration() <= 0)
+            throw new IllegalArgumentException("Training duration must be a positive number");
     }
 }

@@ -6,8 +6,9 @@ import java.util.List;
 
 public interface TraineeRepositoryPort {
     Trainee save(Trainee trainee);
+    Trainee findByUsername(String username);
     Trainee findById(Long id);
     List<Trainee> findAll();
-    void delete(Long id);
+    void delete(String username);
 
 }

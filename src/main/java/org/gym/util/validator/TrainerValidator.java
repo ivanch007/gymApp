@@ -10,20 +10,10 @@ public final class TrainerValidator {
         if (trainer == null)
             throw new IllegalArgumentException("Trainer cannot be null");
 
-        if (trainer.getUserId() == null)
-            throw new IllegalArgumentException("Trainer.userId is required");
+        if (trainer.getUser() == null)
+            throw new IllegalArgumentException("Trainer must be associated with a user");
 
-        if (trainer.getSpecialization() == null || trainer.getSpecialization().isBlank())
+        if (trainer.getSpecialization() == null)
             throw new IllegalArgumentException("Trainer specialization is required");
-    }
-
-    public static void validateForUpdate(Trainer trainer) {
-        if (trainer == null)
-            throw new IllegalArgumentException("Trainer cannot be null");
-
-        if (trainer.getId() == null)
-            throw new IllegalArgumentException("Trainer ID is required for update");
-
-        validateForCreate(trainer);
     }
 }

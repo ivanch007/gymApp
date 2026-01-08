@@ -4,7 +4,7 @@ import org.gym.domain.model.Trainer;
 
 public interface TrainerManagementPort {
     Trainer createTrainer(Trainer trainer);
-    Trainer updateTrainer(Trainer trainer);
-    Trainer getTrainer(Long id);
+    Trainer updateTrainer(String username, String password, Trainer trainer);
+    Trainer getTrainer(String username);
 
 }

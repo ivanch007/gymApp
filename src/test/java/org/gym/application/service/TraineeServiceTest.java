@@ -1,11 +1,18 @@
+// java
 package org.gym.application.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.gym.domain.model.Trainee;
 import org.gym.domain.model.User;
 import org.gym.domain.port.out.TraineeRepositoryPort;
 import org.gym.domain.port.out.UserRepositoryPort;
+import org.gym.util.generator.PasswordGenerator;
+import org.gym.util.generator.UserNameGenerator;
+import org.gym.util.validator.TraineeValidator;
+import org.gym.util.validator.AuthValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.time.LocalDate;
 
@@ -16,81 +23,164 @@ class TraineeServiceTest {
 
     private TraineeRepositoryPort traineeRepo;
     private UserRepositoryPort userRepo;
+    private AuthValidator authValidator;
     private TraineeService traineeService;
 
     @BeforeEach
     void setUp() {
         traineeRepo = mock(TraineeRepositoryPort.class);
         userRepo = mock(UserRepositoryPort.class);
+        authValidator = mock(AuthValidator.class);
 
-        traineeService = new TraineeService(traineeRepo, userRepo);
+        traineeService = new TraineeService(traineeRepo, userRepo, authValidator);
     }
 
     @Test
-    void createTrainee_ShouldGenerateId_WhenIdIsNull() {
+    void createTrainee_ShouldSaveWithGeneratedCredentials_WhenValid() {
         Trainee trainee = new Trainee();
-        trainee.setUserId(1L);
-        trainee.setAddress("Some Street");
-        trainee.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        User user = new User();
+        trainee.setUser(user);
+        trainee.setAddress("Calle X");
+        trainee.setDateOfBirth(LocalDate.of(1990,1,1));
 
-        when(userRepo.findById(1L)).thenReturn(new User());
-        when(traineeRepo.save(any(Trainee.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(traineeRepo.save(any())).thenAnswer(inv -> {
+            Trainee t = inv.getArgument(0);
+            t.setId(42L);
+            return t;
+        });
 
-        Trainee result = traineeService.createTrainee(trainee);
+        try (MockedStatic<TraineeValidator> v = mockStatic(TraineeValidator.class);
+             MockedStatic<UserNameGenerator> u = mockStatic(UserNameGenerator.class);
+             MockedStatic<PasswordGenerator> p = mockStatic(PasswordGenerator.class)) {
 
-        assertNotNull(result.getId());
-        verify(userRepo).findById(1L);
-        verify(traineeRepo).save(any(Trainee.class));
+            v.when(() -> TraineeValidator.validateForCreate(trainee)).thenAnswer(inv -> null);
+            u.when(() -> UserNameGenerator.generateUserNameUnique(user, userRepo)).thenReturn("genUser");
+            p.when(() -> PasswordGenerator.generateRandomPassword(10)).thenReturn("genPwd");
+
+            Trainee saved = traineeService.createTrainee(trainee);
+
+            assertNotNull(saved.getId());
+            assertEquals(42L, saved.getId());
+            assertEquals("genUser", saved.getUser().getUsername());
+            assertEquals("genPwd", saved.getUser().getPassword());
+            assertTrue(saved.getUser().isActive());
+            verify(traineeRepo).save(trainee);
+        }
     }
 
     @Test
-    void createTrainee_ShouldThrow_WhenUserDoesNotExist() {
+    void createTrainee_ShouldNotSave_WhenValidatorThrows() {
         Trainee trainee = new Trainee();
-        trainee.setUserId(99L);
-        trainee.setAddress("Address");
-        trainee.setDateOfBirth(LocalDate.of(1995, 5, 5));
+        trainee.setUser(new User());
 
-        when(userRepo.findById(99L)).thenReturn(null);
+        try (MockedStatic<TraineeValidator> v = mockStatic(TraineeValidator.class)) {
+            v.when(() -> TraineeValidator.validateForCreate(trainee))
+                    .thenThrow(new IllegalArgumentException("invalid trainee"));
 
-        assertThrows(IllegalStateException.class,
-                () -> traineeService.createTrainee(trainee));
-        verify(userRepo).findById(99L);
+            assertThrows(IllegalArgumentException.class, () -> traineeService.createTrainee(trainee));
+            verifyNoInteractions(traineeRepo);
+        }
     }
 
     @Test
-    void updateTrainee_ShouldValidateAndSave() {
-        Trainee trainee = new Trainee();
-        trainee.setId(20L);
-        trainee.setUserId(2L);
-        trainee.setAddress("Upd Street");
-        trainee.setDateOfBirth(LocalDate.of(1992, 2, 2));
+    void updateTrainee_ShouldValidateCredentialsAndSave_WhenExisting() {
+        String username = "tuser";
+        String password = "pwd";
 
+        Trainee existing = new Trainee();
+        existing.setId(10L);
+        existing.setAddress("Old Addr");
+        User existingUser = new User();
+        existingUser.setFirstName("Old");
+        existingUser.setLastName("OldLast");
+        existing.setUser(existingUser);
+
+        when(traineeRepo.findByUsername(username)).thenReturn(existing);
         when(traineeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Trainee result = traineeService.updateTrainee(trainee);
+        Trainee incoming = new Trainee();
+        incoming.setAddress("New Addr");
+        User incomingUser = new User();
+        incomingUser.setFirstName("New");
+        incomingUser.setLastName("NewLast");
+        incoming.setUser(incomingUser);
 
-        assertEquals(20L, result.getId());
-        verify(traineeRepo).save(trainee);
+        // authValidator default (no exception) => passes
+        Trainee result = traineeService.updateTrainee(username, password, incoming);
+
+        assertEquals(10L, result.getId());
+        assertEquals("New Addr", result.getAddress());
+        assertEquals("New", result.getUser().getFirstName());
+        assertEquals("NewLast", result.getUser().getLastName());
+        verify(authValidator).validateCredentials(username, password);
+        verify(traineeRepo).save(existing);
     }
 
     @Test
-    void getTrainee_ShouldReturnEntity() {
+    void updateTrainee_ShouldThrow_WhenAuthFails() {
+        String username = "tuser";
+        String password = "bad";
+
+        Trainee incoming = new Trainee();
+
+        doThrow(new SecurityException("bad creds"))
+                .when(authValidator).validateCredentials(username, password);
+
+        assertThrows(SecurityException.class,
+                () -> traineeService.updateTrainee(username, password, incoming));
+        verify(traineeRepo, never()).save(any());
+    }
+
+    @Test
+    void updateTrainee_ShouldThrowEntityNotFound_WhenMissing() {
+        String username = "missing";
+        String password = "p";
+
+        when(traineeRepo.findByUsername(username)).thenReturn(null);
+
+        Trainee incoming = new Trainee();
+
+        assertThrows(EntityNotFoundException.class,
+                () -> traineeService.updateTrainee(username, password, incoming));
+        verify(traineeRepo, never()).save(any());
+    }
+
+    @Test
+    void getTrainee_ShouldReturnEntity_WhenFound() {
+        String username = "juan";
         Trainee expected = new Trainee();
-        expected.setId(55L);
+        expected.setId(5L);
+        expected.setUser(new User());
+        expected.getUser().setUsername(username);
 
-        when(traineeRepo.findById(55L)).thenReturn(expected);
+        when(traineeRepo.findByUsername(username)).thenReturn(expected);
 
-        Trainee result = traineeService.getTrainee(55L);
+        Trainee result = traineeService.getTrainee(username);
 
         assertSame(expected, result);
-        verify(traineeRepo).findById(55L);
+        verify(traineeRepo).findByUsername(username);
+    }
+
+
+    @Test
+    void deleteTrainee_ShouldValidateCredentialsAndDelete() {
+        String username = "toDelete";
+        String password = "pwd";
+
+        traineeService.deleteTrainee(username, password);
+
+        verify(authValidator).validateCredentials(username, password);
+        verify(traineeRepo).delete(username);
     }
 
     @Test
-    void deleteTrainee_ShouldCallRepository() {
-        traineeService.deleteTrainee(88L);
+    void deleteTrainee_ShouldThrow_WhenAuthFails() {
+        String username = "x";
+        String password = "bad";
 
-        verify(traineeRepo).delete(88L);
+        doThrow(new SecurityException("nope")).when(authValidator).validateCredentials(username, password);
+
+        assertThrows(SecurityException.class, () -> traineeService.deleteTrainee(username, password));
+        verify(traineeRepo, never()).delete(any());
     }
 }

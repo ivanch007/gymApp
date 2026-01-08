@@ -1,73 +1,46 @@
 package org.gym.domain.model;
 
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDate;
 
+@Entity
+@Table(name = "trainings")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Training {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
-    private Long traineeUserId;
-    private Long trainerUserId;
+
+
+    @ManyToOne
+    @JoinColumn(name = "trainee_id", nullable = false)
+    private Trainee trainee;
+
+    @ManyToOne
+    @JoinColumn(name = "trainer_id", nullable = false)
+    private Trainer trainer;
+
+
+    @ManyToOne
+    @JoinColumn(name = "training_type_id", nullable = false)
+    private TrainingType trainingType;
+
+    @Column(name = "training_name", nullable = false)
     private String trainingName;
-    private Long trainingTypeId;
+
+    @Column(name = "training_date", nullable = false)
     private LocalDate date;
+
+    @Column(nullable = false)
     private Integer duration;
 
-    public Training() {
 
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getTraineeUserId() {
-        return traineeUserId;
-    }
-
-    public void setTraineeUserId(Long traineeUserId) {
-        this.traineeUserId = traineeUserId;
-    }
-
-    public Long getTrainerUserId() {
-        return trainerUserId;
-    }
-
-    public void setTrainerUserId(Long trainerUserId) {
-        this.trainerUserId = trainerUserId;
-    }
-
-    public String getTrainingName() {
-        return trainingName;
-    }
-
-    public void setTrainingName(String trainingName) {
-        this.trainingName = trainingName;
-    }
-
-    public Long getTrainingTypeId() {
-        return trainingTypeId;
-    }
-
-    public void setTrainingTypeId(Long trainingType) {
-        this.trainingTypeId = trainingType;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
-
-    public Integer getDuration() {
-        return duration;
-    }
-
-    public void setDuration(Integer duration) {
-        this.duration = duration;
-    }
 }

@@ -4,7 +4,7 @@ import org.gym.domain.model.Trainee;
 
 public interface TraineeManagementPort {
     Trainee createTrainee(Trainee trainee);
-    Trainee updateTrainee(Trainee trainee);
-    Trainee getTrainee(Long id);
-    void deleteTrainee(Long id);
+    Trainee updateTrainee(String  username, String password, Trainee trainee);
+    Trainee getTrainee(String username);
+    void deleteTrainee(String username, String password);
 }

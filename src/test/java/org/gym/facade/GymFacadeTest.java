@@ -5,103 +5,80 @@ import org.gym.domain.port.in.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.mockito.Mockito.*;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class GymFacadeTest {
 
-    private UserManagementPort userPort;
-    private TrainerManagementPort trainerPort;
+    private AuthManagementPort authPort;
     private TraineeManagementPort traineePort;
+    private TrainerManagementPort trainerPort;
     private TrainingManagementPort trainingPort;
     private TrainingTypeManagementPort typePort;
+    private UserManagementPort userPort;
 
     private GymFacade gymFacade;
 
     @BeforeEach
     void setUp() {
-        userPort = mock(UserManagementPort.class);
-        trainerPort = mock(TrainerManagementPort.class);
+        authPort = mock(AuthManagementPort.class);
         traineePort = mock(TraineeManagementPort.class);
+        trainerPort = mock(TrainerManagementPort.class);
         trainingPort = mock(TrainingManagementPort.class);
         typePort = mock(TrainingTypeManagementPort.class);
+        userPort = mock(UserManagementPort.class);
 
         gymFacade = new GymFacade(
-                userPort,
-                trainerPort,
+                authPort,
                 traineePort,
+                trainerPort,
                 trainingPort,
-                typePort
+                typePort,
+                userPort
         );
     }
 
-
     @Test
-    void createUser_ShouldDelegateToUserService() {
-        //arrange
-        User u = new User();
+    void authenticate_ShouldDelegateAndReturnTrue_WhenCredentialsValid() {
+        when(authPort.authenticate("u", "p")).thenReturn(true);
 
-        when(userPort.createUser(u)).thenReturn(u);
-        //Act
-        User result = gymFacade.createUser(u);
-
-        //Assert
-        assertSame(u, result);
-        verify(userPort).createUser(u);
+        assertTrue(gymFacade.authenticate("u", "p"));
+        verify(authPort).authenticate("u", "p");
     }
 
     @Test
-    void updateUser_ShouldCallUserService() {
-        User u = new User();
-        u.setId(10L);
-        when(userPort.updateUser(u)).thenReturn(u);
+    void authenticate_ShouldReturnFalse_WhenCredentialsInvalid() {
+        when(authPort.authenticate("u", "bad")).thenReturn(false);
 
-        User result = gymFacade.updateUser(u);
-
-        assertSame(u, result);
-        verify(userPort).updateUser(u);
+        assertFalse(gymFacade.authenticate("u", "bad"));
+        verify(authPort).authenticate("u", "bad");
     }
 
     @Test
-    void getUser_ShouldCallUserService() {
-        User expected = new User();
-        expected.setId(22L);
+    void changePassword_ShouldCallAuthPort() {
+        doNothing().when(authPort).changePassword("u", "old", "new");
 
-        when(userPort.getUser(22L)).thenReturn(expected);
+        gymFacade.changePassword("u", "old", "new");
 
-        User result = gymFacade.getUser(22L);
-
-        assertSame(expected, result);
-        verify(userPort).getUser(22L);
-    }
-
-
-    @Test
-    void createTrainer_ShouldDelegateToTrainerService() {
-        Trainer trainer = new Trainer();
-        when(trainerPort.createTrainer(trainer)).thenReturn(trainer);
-
-        Trainer result = gymFacade.createTrainer(trainer);
-
-        assertSame(trainer, result);
-        verify(trainerPort).createTrainer(trainer);
+        verify(authPort).changePassword("u", "old", "new");
     }
 
     @Test
-    void getTrainer_ShouldCallTrainerService() {
-        Trainer trainer = new Trainer();
-        trainer.setId(30L);
+    void toggleUserStatus_ShouldCallAuthToggle() {
+        doNothing().when(authPort).toggleStatus("u", "p");
 
-        when(trainerPort.getTrainer(30L)).thenReturn(trainer);
+        gymFacade.toggleUserStatus("u", "p");
 
-        Trainer result = gymFacade.getTrainer(30L);
-
-        assertSame(trainer, result);
-        verify(trainerPort).getTrainer(30L);
+        verify(authPort).toggleStatus("u", "p");
     }
 
     @Test
-    void createTrainee_ShouldDelegateToTraineeService() {
+    void createTrainee_ShouldDelegateAndReturn_WhenOk() {
         Trainee t = new Trainee();
         when(traineePort.createTrainee(t)).thenReturn(t);
 
@@ -112,72 +89,102 @@ class GymFacadeTest {
     }
 
     @Test
-    void deleteTrainee_ShouldCallTraineeService() {
-        gymFacade.deleteTrainee(55L);
-        verify(traineePort).deleteTrainee(55L);
+    void createTrainee_ShouldPropagateException_WhenServiceFails() {
+        Trainee t = new Trainee();
+        when(traineePort.createTrainee(t)).thenThrow(new RuntimeException("db"));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> gymFacade.createTrainee(t));
+        assertEquals("db", ex.getMessage());
+        verify(traineePort).createTrainee(t);
     }
 
+    @Test
+    void updateTrainee_ShouldDelegate_WithCredentials() {
+        String user = "trainee1";
+        String pass = "pwd";
+        Trainee incoming = new Trainee();
+        Trainee updated = new Trainee();
+        updated.setId(5L);
+
+        when(traineePort.updateTrainee(user, pass, incoming)).thenReturn(updated);
+
+        Trainee result = gymFacade.updateTrainee(user, pass, incoming);
+
+        assertSame(updated, result);
+        verify(traineePort).updateTrainee(user, pass, incoming);
+    }
 
     @Test
-    void createTraining_ShouldDelegateToTrainingService() {
+    void deleteTrainee_ShouldCallPortAndPropagate_WhenFails() {
+        doNothing().when(traineePort).deleteTrainee("tuser", "pwd");
+
+        gymFacade.deleteTrainee("tuser", "pwd");
+        verify(traineePort).deleteTrainee("tuser", "pwd");
+
+        doThrow(new IllegalStateException("nope"))
+                .when(traineePort).deleteTrainee("bad", "pwd");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> gymFacade.deleteTrainee("bad", "pwd"));
+        assertEquals("nope", ex.getMessage());
+    }
+
+    @Test
+    void createTraining_And_getTraineeTrainings_GetTrainerTrainings_Scenarios() {
         Training tr = new Training();
         when(trainingPort.createTraining(tr)).thenReturn(tr);
 
-        Training result = gymFacade.createTraining(tr);
-
-        assertSame(tr, result);
+        Training saved = gymFacade.createTraining(tr);
+        assertSame(tr, saved);
         verify(trainingPort).createTraining(tr);
+
+        List<Training> list = Arrays.asList(new Training(), new Training());
+        LocalDate from = LocalDate.now().minusDays(7);
+        LocalDate to = LocalDate.now();
+
+        when(trainingPort.getTraineeTrainings("u", from, to, "trainerA", "TYPE"))
+                .thenReturn(list);
+
+        List<Training> res = gymFacade.getTraineeTrainings("u", from, to, "trainerA", "TYPE");
+        assertSame(list, res);
+        verify(trainingPort).getTraineeTrainings("u", from, to, "trainerA", "TYPE");
+
+        when(trainingPort.getTrainerTrainings("t", from, to, "traineeX"))
+                .thenReturn(Collections.emptyList());
+
+        List<Training> empty = gymFacade.getTrainerTrainings("t", from, to, "traineeX");
+        assertTrue(empty.isEmpty());
+        verify(trainingPort).getTrainerTrainings("t", from, to, "traineeX");
     }
 
     @Test
-    void getTraining_ShouldCallTrainingService() {
-        Training tr = new Training();
-        tr.setId(44L);
-
-        when(trainingPort.getTraining(44L)).thenReturn(tr);
-
-        Training result = gymFacade.getTraining(44L);
-
-        assertSame(tr, result);
-        verify(trainingPort).getTraining(44L);
-    }
-
-
-
-    @Test
-    void createTrainingType_ShouldDelegateToService() {
+    void createTrainingType_And_getTrainingType_Scenarios() {
         TrainingType type = new TrainingType();
+        type.setId(99L);
         when(typePort.create(type)).thenReturn(type);
 
-        TrainingType result = gymFacade.createTrainingType(type);
-
-        assertSame(type, result);
+        TrainingType created = gymFacade.createTrainingType(type);
+        assertSame(type, created);
         verify(typePort).create(type);
+
+        when(typePort.get(99L)).thenReturn(type);
+        TrainingType got = gymFacade.getTrainingType(99L);
+        assertSame(type, got);
+        verify(typePort).get(99L);
+
+        when(typePort.get(123L)).thenReturn(null);
+        assertNull(gymFacade.getTrainingType(123L));
+        verify(typePort).get(123L);
     }
 
     @Test
-    void updateTrainingType_ShouldCallService() {
-        TrainingType type = new TrainingType();
-        type.setId(66L);
+    void getUserByUsername_ShouldDelegate() {
+        User u = new User();
+        u.setUsername("juan");
+        when(userPort.getUserByUsername("juan")).thenReturn(u);
 
-        when(typePort.update(type)).thenReturn(type);
-
-        TrainingType result = gymFacade.updateTrainingType(type);
-
-        assertSame(type, result);
-        verify(typePort).update(type);
-    }
-
-    @Test
-    void getTrainingType_ShouldCallService() {
-        TrainingType type = new TrainingType();
-        type.setId(77L);
-
-        when(typePort.get(77L)).thenReturn(type);
-
-        TrainingType result = gymFacade.getTrainingType(77L);
-
-        assertSame(type, result);
-        verify(typePort).get(77L);
+        User result = gymFacade.getUserByUsername("juan");
+        assertSame(u, result);
+        verify(userPort).getUserByUsername("juan");
     }
 }
