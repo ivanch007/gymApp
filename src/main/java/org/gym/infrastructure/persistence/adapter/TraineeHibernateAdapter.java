@@ -29,7 +29,9 @@ public class TraineeHibernateAdapter implements TraineeRepositoryPort {
     public Trainee findByUsername(String username) {
         try {
             return entityManager.createQuery(
-                            "SELECT t FROM Trainee t JOIN t.user u WHERE u.username = :un", Trainee.class)
+                            "SELECT t FROM Trainee t " +
+                                    "JOIN FETCH t.user u " +
+                                    "WHERE u.username = :un", Trainee.class)
                     .setParameter("un", username)
                     .getSingleResult();
         } catch (NoResultException e) {
@@ -52,6 +54,10 @@ public class TraineeHibernateAdapter implements TraineeRepositoryPort {
 
     @Override
     public List<Trainee> findAll() {
-        return entityManager.createQuery("SELECT t FROM Trainee t", Trainee.class).getResultList();
+        return entityManager.createQuery(
+                        "SELECT DISTINCT t FROM Trainee t " +
+                                "JOIN FETCH t.user " +
+                                "LEFT JOIN FETCH t.trainers", Trainee.class)
+                .getResultList();
     }
 }

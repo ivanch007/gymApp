@@ -29,7 +29,10 @@ public class TrainerHibernateAdapter implements TrainerRepositoryPort {
     public Trainer findByUsername(String username) {
         try {
             return entityManager.createQuery(
-                            "SELECT t FROM Trainer t JOIN t.user u WHERE u.username = :un", Trainer.class)
+                            "SELECT t FROM Trainer t " +
+                                    "JOIN FETCH t.user u " +
+                                    "JOIN FETCH t.specialization " +
+                                    "WHERE u.username = :un", Trainer.class)
                     .setParameter("un", username)
                     .getSingleResult();
         } catch (NoResultException e) {
@@ -44,6 +47,11 @@ public class TrainerHibernateAdapter implements TrainerRepositoryPort {
 
     @Override
     public List<Trainer> findAll() {
-        return entityManager.createQuery("SELECT t FROM Trainer t", Trainer.class).getResultList();
+        return entityManager.createQuery(
+                        "SELECT DISTINCT t FROM Trainer t " +
+                                "JOIN FETCH t.user " +
+                                "JOIN FETCH t.specialization " +
+                                "LEFT JOIN FETCH t.trainees", Trainer.class)
+                .getResultList();
     }
 }

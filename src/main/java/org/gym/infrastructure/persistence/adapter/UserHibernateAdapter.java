@@ -28,7 +28,8 @@ public class UserHibernateAdapter implements UserRepositoryPort {
     @Override
     public User findByUsername(String username) {
         try {
-            return entityManager.createQuery("SELECT u FROM User u WHERE u.username = :un", User.class)
+            return entityManager.createQuery(
+                            "SELECT u FROM User u WHERE u.username = :un", User.class)
                     .setParameter("un", username)
                     .getSingleResult();
         } catch (NoResultException e) {
